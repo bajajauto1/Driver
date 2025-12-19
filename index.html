@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Driver Management System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+
+<!-- Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+body{font-family:Arial;background:#f1f3f6;margin:0;padding:10px}
+.card{background:#fff;padding:15px;border-radius:8px;margin-bottom:10px}
+input,button{width:100%;padding:10px;margin-top:8px}
+button{border:none;border-radius:6px;background:#1976d2;color:#fff}
+button.red{background:#d32f2f}
+button.green{background:#388e3c}
+.shift-btns button{width:32%;margin:2px}
+.active{background:#388e3c!important}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border:1px solid #ccc;padding:6px;text-align:center}
+th{background:#263238;color:#fff}
+.hide{display:none}
+/* LOGO STYLES */
+.logo-login {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.logo-login img {
+  max-width: 140px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.header img {
+  height: 40px;
+}
+
+
+
+
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginCard" class="card">
+
+<div class="logo-login">
+  <img src="download (1).png" alt="Company Logo">
+</div>
+
+<h3>Admin Login</h3>
+
+<input id="email" placeholder="Email">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hide">
+
+<div class="card header">
+  <img src="download (1).png" alt="Company Logo">
+  <div style="flex:1"></div>
+  <button class="green" onclick="logout()">Logout</button>
+</div>
+
+<div class="card">
+  <input type="file" id="excel">
+  <button onclick="uploadExcel()">Import Excel</button>
+  <button onclick="exportCSV()">Export Called List</button>
+</div>
+
+
+<!-- ADD / EDIT DRIVER -->
+<div class="card">
+<h4>Add / Edit Driver</h4>
+<input type="hidden" id="editKey">
+<div class="shift-btns">
+<button onclick="setFormShift(0)">First</button>
+<button onclick="setFormShift(1)">Second</button>
+<button onclick="setFormShift(2)">Third</button>
+</div>
+<input id="route" placeholder="Route Name">
+<input id="driverName" placeholder="Driver Name">
+<input id="driverNo" placeholder="Driver Phone">
+<input id="pickupTime" placeholder="Pickup Time">
+<button onclick="saveDriver()">Save Driver</button>
+</div>
+
+<div class="card">
+<input id="search" placeholder="Search Driver" oninput="loadDrivers()">
+</div>
+
+<div class="card shift-btns">
+<button id="s0" class="active" onclick="setShift(0)">First Shift</button>
+<button id="s1" onclick="setShift(1)">Second Shift</button>
+<button id="s2" onclick="setShift(2)">Third Shift</button>
+</div>
+
+<div id="tableCard" class="card"></div>
+
+</div>
+
+<script>
+/* ===== FIREBASE CONFIG ===== */
+const firebaseConfig={
+   apiKey: "AIzaSyAkxDtJ537bHtAf6i96XW7eY-t8WUapOOs",
+  authDomain: "mybuspass-b222d.firebaseapp.com",
+  databaseURL: "https://mybuspass-b222d-default-rtdb.firebaseio.com",
+  projectId: "mybuspass-b222d",
+  storageBucket: "mybuspass-b222d.firebasestorage.app",
+  messagingSenderId: "275216597664",
+  appId: "1:275216597664:web:9fd7443ce24ca3ffe9ffc5",
+  measurementId: "G-PV5415ZHYC"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.database();
+
+/* AUTH */
+auth.onAuthStateChanged(u=>{
+  loginCard.style.display=u?"none":"block";
+  dashboard.style.display=u?"block":"none";
+  if(u) loadDrivers();
+});
+function login(){auth.signInWithEmailAndPassword(email.value,password.value).catch(e=>alert(e.message))}
+function logout(){auth.signOut()}
+
+/* GLOBAL */
+let currentShift=0;
+let formShift=0;
+const today=new Date().toISOString().slice(0,10);
+
+/* SHIFT */
+function setShift(s){
+  currentShift=s;
+  document.querySelectorAll(".shift-btns button").forEach(b=>b.classList.remove("active"));
+  document.getElementById("s"+s).classList.add("active");
+  loadDrivers();
+}
+function setFormShift(s){formShift=s}
+
+/* LOAD */
+function loadDrivers(){
+  db.ref("drivers/shift"+currentShift).on("value",snap=>{
+    let html=`<table><tr>
+    <th>Route</th><th>Name</th><th>Phone</th>
+    <th>Pickup</th><th>Status</th><th>Action</th></tr>`;
+    const q=search.value.toLowerCase();
+    snap.forEach(c=>{
+      const d=c.val();
+      if(q && !(`${d.route}${d.driverName}${d.driverNo}`.toLowerCase().includes(q)))return;
+      const calledToday=d.lastCallDate===today;
+      html+=`
+      <tr>
+      <td>${d.route}</td>
+      <td>${d.driverName}</td>
+      <td>${d.driverNo}</td>
+      <td>${d.pickupTime}</td>
+      <td>${calledToday?"Called Today":"Pending"}</td>
+      <td>
+      ${calledToday?"":`<button onclick="callDriver('${c.key}','${d.driverNo}')">Call</button>`}
+      <button onclick='editDriver("${c.key}",${JSON.stringify(d)})'>Edit</button>
+      <button class="red" onclick="deleteDriver('${c.key}')">Del</button>
+      </td></tr>`;
+    });
+    tableCard.innerHTML=html+"</table>";
+  });
+}
+
+/* CRUD */
+function saveDriver(){
+  const data={
+    route:route.value,
+    driverName:driverName.value,
+    driverNo:driverNo.value,
+    pickupTime:pickupTime.value,
+    lastCallDate:""
+  };
+  if(editKey.value)
+    db.ref(`drivers/shift${formShift}/${editKey.value}`).update(data);
+  else
+    db.ref(`drivers/shift${formShift}`).push(data);
+
+  editKey.value="";
+  route.value=driverName.value=driverNo.value=pickupTime.value="";
+  loadDrivers();
+}
+
+function editDriver(key,d){
+  editKey.value=key;
+  route.value=d.route;
+  driverName.value=d.driverName;
+  driverNo.value=d.driverNo;
+  pickupTime.value=d.pickupTime;
+}
+
+function deleteDriver(key){
+  if(confirm("Delete driver?"))
+    db.ref(`drivers/shift${currentShift}/${key}`).remove();
+}
+
+/* CALL */
+function callDriver(key,phone){
+  window.location.href="tel:"+phone;
+  db.ref(`drivers/shift${currentShift}/${key}`).update({
+    lastCallDate:today,
+    callTime:new Date().toLocaleTimeString(),
+    callDate:new Date().toLocaleDateString()
+  });
+}
+
+/* EXCEL IMPORT (WORKING) */
+function uploadExcel(){
+  const file=excel.files[0];
+  if(!file)return alert("Select Excel file");
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const wb=XLSX.read(e.target.result,{type:"binary"});
+    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    if(!rows.length || !rows[0].shiftNo) return alert("Invalid Excel format");
+    rows.forEach(r=>{
+      db.ref(`drivers/shift${r.shiftNo-1}`).push({
+        route:r.route,
+        driverName:r.driverName,
+        driverNo:r.driverNo,
+        pickupTime:r.pickupTime,
+        lastCallDate:""
+      });
+    });
+    alert("Excel Imported Successfully");
+  };
+  reader.readAsBinaryString(file);
+}
+
+/* EXPORT WITH DATE */
+function exportCSV(){
+  const rows=[["Shift","Route","Name","Phone","Pickup","Call Date","Call Time"]];
+  db.ref("drivers").once("value",s=>{
+    s.forEach(sh=>{
+      sh.forEach(d=>{
+        const v=d.val();
+        if(v.lastCallDate===today)
+          rows.push([sh.key,v.route,v.driverName,v.driverNo,v.pickupTime,v.callDate,v.callTime]);
+      });
+    });
+    const csv=rows.map(r=>r.join(",")).join("\n");
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(new Blob([csv]));
+    a.download="called_drivers_"+today+".csv";
+    a.click();
+  });
+}
+</script>
+
+</body>
+</html>
