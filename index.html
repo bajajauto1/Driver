@@ -1,131 +1,196 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Driver Management System</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>Driver Management System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
-<!-- Excel -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
-<style>
-body{font-family:Arial;background:#f1f3f6;margin:0;padding:10px}
-.card{background:#fff;padding:15px;border-radius:8px;margin-bottom:10px}
-input,button{width:100%;padding:10px;margin-top:8px}
-button{border:none;border-radius:6px;background:#1976d2;color:#fff}
-button.red{background:#d32f2f}
-button.green{background:#388e3c}
-.shift-btns button{width:32%;margin:2px}
-.active{background:#388e3c!important}
-table{width:100%;border-collapse:collapse;font-size:14px}
-th,td{border:1px solid #ccc;padding:6px;text-align:center}
-th{background:#263238;color:#fff}
-.hide{display:none}
-/* LOGO STYLES */
-.logo-login {
-  text-align: center;
-  margin-bottom: 15px;
-}
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --text: #1e293b;
+        }
 
-.logo-login img {
-  max-width: 140px;
-}
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 50px;
+        }
 
-.header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
+        /* UTILS */
+        .hide { display: none !important; }
+        .card { background: #fff; border-radius: 12px; padding: 16px; margin: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
-.header img {
-  height: 40px;
-}
+        /* HEADER */
+        .header {
+            background: #fff;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .header img { height: 35px; }
 
+        /* INPUTS & BUTTONS */
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px; /* Prevents iOS zoom on focus */
+        }
 
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 8px;
+            border: none;
+            border-radius: 8px;
+            background: var(--primary);
+            color: #fff;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:active { opacity: 0.7; }
+        button.red { background: var(--danger); }
+        button.green { background: var(--success); }
+        button.outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
 
+        /* SHIFT SELECTOR */
+        .shift-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .shift-grid button {
+            background: #e2e8f0;
+            color: #64748b;
+            margin: 0;
+        }
+        .shift-grid button.active {
+            background: var(--primary);
+            color: #fff;
+        }
 
-</style>
+        /* DRIVER CARDS (Mobile Friendly Table Alternative) */
+        .driver-card {
+            border-left: 5px solid #cbd5e1;
+            position: relative;
+        }
+        .driver-card.called { border-left-color: var(--success); }
+        .driver-card .route-tag { 
+            font-size: 12px; 
+            font-weight: bold; 
+            color: var(--primary); 
+            text-transform: uppercase;
+        }
+        .driver-card .name { font-size: 18px; font-weight: 700; margin: 4px 0; }
+        .driver-card .info { font-size: 14px; color: #64748b; margin-bottom: 10px; }
+        .driver-card .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+        .driver-card .status-badge {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 20px;
+            background: #f1f5f9;
+        }
+
+        /* LOGIN PAGE */
+        .login-container {
+            max-width: 400px;
+            margin: 50px auto;
+            text-align: center;
+        }
+    </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
-<div id="loginCard" class="card">
-
-<div class="logo-login">
-  <img src="download (1).png" alt="Company Logo">
+<div id="loginCard" class="login-container">
+    <div class="card">
+        <img src="download (1).png" alt="Logo" style="width: 120px; margin-bottom: 20px;">
+        <h2 style="margin-top:0">Admin Login</h2>
+        <input id="email" type="email" placeholder="Email Address">
+        <input id="password" type="password" placeholder="Password">
+        <button onclick="login()">Sign In</button>
+    </div>
 </div>
 
-<h3>Admin Login</h3>
-
-<input id="email" placeholder="Email">
-<input id="password" type="password" placeholder="Password">
-<button onclick="login()">Login</button>
-</div>
-
-<!-- DASHBOARD -->
 <div id="dashboard" class="hide">
+    <header class="header">
+        <img src="download (1).png" alt="Logo">
+        <button class="red" style="width: auto; padding: 6px 15px; margin: 0;" onclick="logout()">Logout</button>
+    </header>
 
-<div class="card header">
-  <img src="download (1).png" alt="Company Logo">
-  <div style="flex:1"></div>
-  <button class="green" onclick="logout()">Logout</button>
-</div>
+    <div class="card">
+        <div style="font-size: 14px; color: #64748b; margin-bottom: 8px;">Quick Actions</div>
+        <div style="display: flex; gap: 8px;">
+            <input type="file" id="excel" style="display:none" onchange="uploadExcel()">
+            <button class="outline" onclick="document.getElementById('excel').click()">Import Excel</button>
+            <button class="outline" onclick="exportCSV()">Export CSV</button>
+        </div>
+    </div>
 
-<div class="card">
-  <input type="file" id="excel">
-  <button onclick="uploadExcel()">Import Excel</button>
-  <button onclick="exportCSV()">Export Called List</button>
-</div>
+    <div class="card">
+        <h4 style="margin-top:0">Add / Edit Driver</h4>
+        <input type="hidden" id="editKey">
+        <div class="shift-grid">
+            <button type="button" id="fs0" onclick="setFormShift(0)">1st</button>
+            <button type="button" id="fs1" onclick="setFormShift(1)">2nd</button>
+            <button type="button" id="fs2" onclick="setFormShift(2)">3rd</button>
+        </div>
+        <input id="route" placeholder="Route Name">
+        <input id="driverName" placeholder="Driver Name">
+        <input id="driverNo" type="tel" placeholder="Driver Phone">
+        <input id="pickupTime" placeholder="Pickup Time (e.g. 08:30 AM)">
+        <button id="saveBtn" onclick="saveDriver()">Save Driver Details</button>
+    </div>
 
+    <div class="card" style="position: sticky; top: 60px; z-index: 99;">
+        <input id="search" placeholder="🔍 Search by name or route..." oninput="loadDrivers()">
+        <div class="shift-grid" style="margin-top:10px">
+            <button id="s0" class="active" onclick="setShift(0)">First</button>
+            <button id="s1" onclick="setShift(1)">Second</button>
+            <button id="s2" onclick="setShift(2)">Third</button>
+        </div>
+    </div>
 
-<!-- ADD / EDIT DRIVER -->
-<div class="card">
-<h4>Add / Edit Driver</h4>
-<input type="hidden" id="editKey">
-<div class="shift-btns">
-<button onclick="setFormShift(0)">First</button>
-<button onclick="setFormShift(1)">Second</button>
-<button onclick="setFormShift(2)">Third</button>
-</div>
-<input id="route" placeholder="Route Name">
-<input id="driverName" placeholder="Driver Name">
-<input id="driverNo" placeholder="Driver Phone">
-<input id="pickupTime" placeholder="Pickup Time">
-<button onclick="saveDriver()">Save Driver</button>
-</div>
-
-<div class="card">
-<input id="search" placeholder="Search Driver" oninput="loadDrivers()">
-</div>
-
-<div class="card shift-btns">
-<button id="s0" class="active" onclick="setShift(0)">First Shift</button>
-<button id="s1" onclick="setShift(1)">Second Shift</button>
-<button id="s2" onclick="setShift(2)">Third Shift</button>
-</div>
-
-<div id="tableCard" class="card"></div>
-
+    <div id="driverList"></div>
 </div>
 
 <script>
 /* ===== FIREBASE CONFIG ===== */
 const firebaseConfig={
-   apiKey: "AIzaSyAkxDtJ537bHtAf6i96XW7eY-t8WUapOOs",
-  authDomain: "mybuspass-b222d.firebaseapp.com",
-  databaseURL: "https://mybuspass-b222d-default-rtdb.firebaseio.com",
-  projectId: "mybuspass-b222d",
-  storageBucket: "mybuspass-b222d.firebasestorage.app",
-  messagingSenderId: "275216597664",
-  appId: "1:275216597664:web:9fd7443ce24ca3ffe9ffc5",
-  measurementId: "G-PV5415ZHYC"
+    apiKey: "AIzaSyAkxDtJ537bHtAf6i96XW7eY-t8WUapOOs",
+    authDomain: "mybuspass-b222d.firebaseapp.com",
+    databaseURL: "https://mybuspass-b222d-default-rtdb.firebaseio.com",
+    projectId: "mybuspass-b222d",
+    storageBucket: "mybuspass-b222d.firebasestorage.app",
+    messagingSenderId: "275216597664",
+    appId: "1:275216597664:web:9fd7443ce24ca3ffe9ffc5"
 };
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth();
@@ -133,137 +198,161 @@ const db=firebase.database();
 
 /* AUTH */
 auth.onAuthStateChanged(u=>{
-  loginCard.style.display=u?"none":"block";
-  dashboard.style.display=u?"block":"none";
-  if(u) loadDrivers();
+    loginCard.classList.toggle("hide", !!u);
+    dashboard.classList.toggle("hide", !u);
+    if(u) {
+        loadDrivers();
+        setFormShift(0);
+    }
 });
-function login(){auth.signInWithEmailAndPassword(email.value,password.value).catch(e=>alert(e.message))}
-function logout(){auth.signOut()}
 
-/* GLOBAL */
+function login(){ auth.signInWithEmailAndPassword(email.value, password.value).catch(e=>alert(e.message)) }
+function logout(){ auth.signOut() }
+
+/* GLOBAL STATE */
 let currentShift=0;
 let formShift=0;
 const today=new Date().toISOString().slice(0,10);
 
-/* SHIFT */
+/* SHIFT HELPERS */
 function setShift(s){
-  currentShift=s;
-  document.querySelectorAll(".shift-btns button").forEach(b=>b.classList.remove("active"));
-  document.getElementById("s"+s).classList.add("active");
-  loadDrivers();
+    currentShift=s;
+    document.querySelectorAll(".shift-grid:last-of-type button").forEach(b=>b.classList.remove("active"));
+    document.getElementById("s"+s).classList.add("active");
+    loadDrivers();
 }
-function setFormShift(s){formShift=s}
 
-/* LOAD */
+function setFormShift(s){
+    formShift=s;
+    document.querySelectorAll(".shift-grid:first-of-type button").forEach(b=>b.classList.remove("active"));
+    document.getElementById("fs"+s).classList.add("active");
+}
+
+/* UI RENDERER */
 function loadDrivers(){
-  db.ref("drivers/shift"+currentShift).on("value",snap=>{
-    let html=`<table><tr>
-    <th>Route</th><th>Name</th><th>Phone</th>
-    <th>Pickup</th><th>Status</th><th>Action</th></tr>`;
-    const q=search.value.toLowerCase();
-    snap.forEach(c=>{
-      const d=c.val();
-      if(q && !(`${d.route}${d.driverName}${d.driverNo}`.toLowerCase().includes(q)))return;
-      const calledToday=d.lastCallDate===today;
-      html+=`
-      <tr>
-      <td>${d.route}</td>
-      <td>${d.driverName}</td>
-      <td>${d.driverNo}</td>
-      <td>${d.pickupTime}</td>
-      <td>${calledToday?"Called Today":"Pending"}</td>
-      <td>
-      ${calledToday?"":`<button onclick="callDriver('${c.key}','${d.driverNo}')">Call</button>`}
-      <button onclick='editDriver("${c.key}",${JSON.stringify(d)})'>Edit</button>
-      <button class="red" onclick="deleteDriver('${c.key}')">Del</button>
-      </td></tr>`;
+    db.ref("drivers/shift"+currentShift).on("value",snap=>{
+        let html="";
+        const q=search.value.toLowerCase();
+        
+        snap.forEach(c=>{
+            const d=c.val();
+            if(q && !(`${d.route}${d.driverName}${d.driverNo}`.toLowerCase().includes(q))) return;
+            
+            const calledToday = d.lastCallDate === today;
+            
+            html += `
+            <div class="card driver-card ${calledToday ? 'called' : ''}">
+                <div class="status-badge" style="color:${calledToday ? 'green' : 'orange'}">
+                    ${calledToday ? '✓ Called' : '● Pending'}
+                </div>
+                <div class="route-tag">Route: ${d.route}</div>
+                <div class="name">${d.driverName}</div>
+                <div class="info">
+                    📞 ${d.driverNo} <br>
+                    ⏰ Pickup: ${d.pickupTime}
+                </div>
+                <div class="actions">
+                    ${calledToday ? 
+                        `<button class="outline" onclick="callDriver('${c.key}','${d.driverNo}')">Recall</button>` : 
+                        `<button class="green" onclick="callDriver('${c.key}','${d.driverNo}')">Call</button>`
+                    }
+                    <button class="outline" onclick='editDriver("${c.key}",${JSON.stringify(d)})'>Edit</button>
+                    <button class="red" onclick="deleteDriver('${c.key}')">Del</button>
+                </div>
+            </div>`;
+        });
+        driverList.innerHTML = html || `<div style="text-align:center; padding:20px; color:#64748b;">No drivers found for this shift.</div>`;
     });
-    tableCard.innerHTML=html+"</table>";
-  });
 }
 
-/* CRUD */
+/* CRUD LOGIC */
 function saveDriver(){
-  const data={
-    route:route.value,
-    driverName:driverName.value,
-    driverNo:driverNo.value,
-    pickupTime:pickupTime.value,
-    lastCallDate:""
-  };
-  if(editKey.value)
-    db.ref(`drivers/shift${formShift}/${editKey.value}`).update(data);
-  else
-    db.ref(`drivers/shift${formShift}`).push(data);
+    const data={
+        route: route.value,
+        driverName: driverName.value,
+        driverNo: driverNo.value,
+        pickupTime: pickupTime.value,
+        lastCallDate: editKey.value ? "" : "" // Logic to keep or clear
+    };
 
-  editKey.value="";
-  route.value=driverName.value=driverNo.value=pickupTime.value="";
-  loadDrivers();
+    if(!data.driverName || !data.driverNo) return alert("Name and Phone are required");
+
+    if(editKey.value)
+        db.ref(`drivers/shift${formShift}/${editKey.value}`).update(data);
+    else
+        db.ref(`drivers/shift${formShift}`).push(data);
+
+    // Reset Form
+    editKey.value="";
+    route.value=driverName.value=driverNo.value=pickupTime.value="";
+    document.getElementById('saveBtn').innerText = "Save Driver Details";
 }
 
-function editDriver(key,d){
-  editKey.value=key;
-  route.value=d.route;
-  driverName.value=d.driverName;
-  driverNo.value=d.driverNo;
-  pickupTime.value=d.pickupTime;
+function editDriver(key, d){
+    editKey.value=key;
+    route.value=d.route;
+    driverName.value=d.driverName;
+    driverNo.value=d.driverNo;
+    pickupTime.value=d.pickupTime;
+    setFormShift(currentShift);
+    document.getElementById('saveBtn').innerText = "Update Driver";
+    window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
 function deleteDriver(key){
-  if(confirm("Delete driver?"))
-    db.ref(`drivers/shift${currentShift}/${key}`).remove();
+    if(confirm("Are you sure you want to delete this driver?"))
+        db.ref(`drivers/shift${currentShift}/${key}`).remove();
 }
 
-/* CALL */
-function callDriver(key,phone){
-  window.location.href="tel:"+phone;
-  db.ref(`drivers/shift${currentShift}/${key}`).update({
-    lastCallDate:today,
-    callTime:new Date().toLocaleTimeString(),
-    callDate:new Date().toLocaleDateString()
-  });
+function callDriver(key, phone){
+    window.location.href="tel:"+phone;
+    db.ref(`drivers/shift${currentShift}/${key}`).update({
+        lastCallDate: today,
+        callTime: new Date().toLocaleTimeString(),
+        callDate: new Date().toLocaleDateString()
+    });
 }
 
-/* EXCEL IMPORT (WORKING) */
+/* EXCEL TOOLS */
 function uploadExcel(){
-  const file=excel.files[0];
-  if(!file)return alert("Select Excel file");
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const wb=XLSX.read(e.target.result,{type:"binary"});
-    const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-    if(!rows.length || !rows[0].shiftNo) return alert("Invalid Excel format");
-    rows.forEach(r=>{
-      db.ref(`drivers/shift${r.shiftNo-1}`).push({
-        route:r.route,
-        driverName:r.driverName,
-        driverNo:r.driverNo,
-        pickupTime:r.pickupTime,
-        lastCallDate:""
-      });
-    });
-    alert("Excel Imported Successfully");
-  };
-  reader.readAsBinaryString(file);
+    const file=excel.files[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=e=>{
+        const wb=XLSX.read(e.target.result,{type:"binary"});
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        rows.forEach(r=>{
+            db.ref(`drivers/shift${(r.shiftNo || 1)-1}`).push({
+                route: r.route || "N/A",
+                driverName: r.driverName || "Unknown",
+                driverNo: r.driverNo || "000",
+                pickupTime: r.pickupTime || "-",
+                lastCallDate: ""
+            });
+        });
+        alert("Imported " + rows.length + " drivers.");
+    };
+    reader.readAsBinaryString(file);
 }
 
-/* EXPORT WITH DATE */
 function exportCSV(){
-  const rows=[["Shift","Route","Name","Phone","Pickup","Call Date","Call Time"]];
-  db.ref("drivers").once("value",s=>{
-    s.forEach(sh=>{
-      sh.forEach(d=>{
-        const v=d.val();
-        if(v.lastCallDate===today)
-          rows.push([sh.key,v.route,v.driverName,v.driverNo,v.pickupTime,v.callDate,v.callTime]);
-      });
+    const rows=[["Shift","Route","Name","Phone","Pickup","Call Date","Call Time"]];
+    db.ref("drivers").once("value",s=>{
+        s.forEach(sh=>{
+            sh.forEach(d=>{
+                const v=d.val();
+                if(v.lastCallDate===today)
+                    rows.push([sh.key, v.route, v.driverName, v.driverNo, v.pickupTime, v.callDate, v.callTime]);
+            });
+        });
+        const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Report_${today}.csv`);
+        document.body.appendChild(link);
+        link.click();
     });
-    const csv=rows.map(r=>r.join(",")).join("\n");
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob([csv]));
-    a.download="called_drivers_"+today+".csv";
-    a.click();
-  });
 }
 </script>
 
