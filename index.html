@@ -166,6 +166,8 @@
         <input id="driverName" placeholder="Driver Name">
         <input id="driverNo" type="tel" placeholder="Driver Phone">
         <input id="pickupTime" placeholder="Pickup Time (e.g. 08:30 AM)">
+        <input id="callingTime" placeholder="Calling Time (e.g. 07:45 AM)">
+
         <button id="saveBtn" onclick="saveDriver()">Save Driver Details</button>
     </div>
 
@@ -247,10 +249,12 @@ function loadDrivers(){
                 </div>
                 <div class="route-tag">Route: ${d.route}</div>
                 <div class="name">${d.driverName}</div>
-                <div class="info">
-                    📞 ${d.driverNo} <br>
-                    ⏰ Pickup: ${d.pickupTime}
-                </div>
+               <div class="info">
+    📞 ${d.driverNo} <br>
+    ⏰ Pickup: ${d.pickupTime} <br>
+    📲 Calling: ${d.callingTime || "-"}
+</div>
+
                 <div class="actions">
                     ${calledToday ? 
                         `<button class="outline" onclick="callDriver('${c.key}','${d.driverNo}')">Recall</button>` : 
@@ -272,6 +276,7 @@ function saveDriver(){
         driverName: driverName.value,
         driverNo: driverNo.value,
         pickupTime: pickupTime.value,
+        callingTime: callingTime.value,
         lastCallDate: editKey.value ? "" : "" // Logic to keep or clear
     };
 
@@ -284,7 +289,8 @@ function saveDriver(){
 
     // Reset Form
     editKey.value="";
-    route.value=driverName.value=driverNo.value=pickupTime.value="";
+    route.value=driverName.value=driverNo.value=pickupTime.value=callingTime.value="";
+
     document.getElementById('saveBtn').innerText = "Save Driver Details";
 }
 
@@ -294,6 +300,8 @@ function editDriver(key, d){
     driverName.value=d.driverName;
     driverNo.value=d.driverNo;
     pickupTime.value=d.pickupTime;
+    callingTime.value=d.callingTime || "";
+
     setFormShift(currentShift);
     document.getElementById('saveBtn').innerText = "Update Driver";
     window.scrollTo({top: 0, behavior: 'smooth'});
@@ -327,6 +335,7 @@ function uploadExcel(){
                 driverName: r.driverName || "Unknown",
                 driverNo: r.driverNo || "000",
                 pickupTime: r.pickupTime || "-",
+                callingTime: r.callingTime || "-",
                 lastCallDate: ""
             });
         });
@@ -336,13 +345,24 @@ function uploadExcel(){
 }
 
 function exportCSV(){
-    const rows=[["Shift","Route","Name","Phone","Pickup","Call Date","Call Time"]];
+    const rows=[["Shift","Route","Name","Phone","Pickup","Calling Time","Call Date","Call Time"]];
+
     db.ref("drivers").once("value",s=>{
         s.forEach(sh=>{
             sh.forEach(d=>{
                 const v=d.val();
                 if(v.lastCallDate===today)
-                    rows.push([sh.key, v.route, v.driverName, v.driverNo, v.pickupTime, v.callDate, v.callTime]);
+                    rows.push([
+  sh.key,
+  v.route,
+  v.driverName,
+  v.driverNo,
+  v.pickupTime,
+  v.callingTime,
+  v.callDate,
+  v.callTime
+]);
+
             });
         });
         const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
